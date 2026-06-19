@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JB AI Assistant</title>
+    <script>
+      // Safeguard against third-party scripts trying to redefine or re-assign read-only window.fetch
+      (function() {
+        try {
+          const originalFetch = window.fetch;
+          let currentFetch = originalFetch;
+
+          // Define getter/setter on Window.prototype so that assignment
+          // to window.fetch invokes the setter instead of throwing a TypeError
+          try {
+            Object.defineProperty(Window.prototype, 'fetch', {
+              get() { return currentFetch; },
+              set(v) { currentFetch = v; },
+              configurable: true
+            });
+          } catch (e1) {
+            console.warn("Unable to define fetch setter on Window.prototype", e1);
+          }
+
+          // Also define on window directly for absolute certainty
+          try {
+            Object.defineProperty(window, 'fetch', {
+              get() { return currentFetch; },
+              set(v) { currentFetch = v; },
+              configurable: true
+            });
+          } catch (e2) {
+            // Ignore if window defineProperty is restricted
+          }
+        } catch (e) {
+          console.error("Fetch safeguard initialization failed:", e);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

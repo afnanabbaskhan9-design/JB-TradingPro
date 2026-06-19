@@ -1,0 +1,6 @@
+{
+  "name": "JB AI Assistant",
+  "description": "Professional institutional-grade trading platform utilizing real-time simulated market feeds, an advanced interactive charting terminal, SL/TP dragging, copy trading, and an AI Trading Assistant powered by Gemini.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
