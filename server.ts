@@ -3,8 +3,14 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
+
+const supabaseUrl = process.env.SUPABASE_URL || "https://bfnrdazwyfszpmqkwtqd.supabase.co";
+const supabaseKey = process.env.SUPABASE_KEY || "sb_publishable_rjR8H91Ibm8HZwBywSfE-Q_rVDIZ2wm";
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Ensure the Gemini API key is configured with the standard aistudio-build telemetry header
 const ai = new GoogleGenAI({
@@ -112,6 +118,147 @@ let mockCopyProviders = [
 let mockAlerts: any[] = [
   { id: "alert_1", type: "NEWS_ALERT", message: "NFP data released: 215K (Forecast 185K) - Strong bullish implications for USD", time: new Date(Date.now() - 10 * 60000).toISOString(), read: false }
 ];
+
+// ==========================================
+// SUPABASE REAL-TIME SYNCHRONIZATION HELPERS
+// ==========================================
+async function syncUserToSupabase(user: typeof mockUser) {
+  try {
+    const payload = {
+      email: user.email,
+      full_name: user.fullName,
+      phone: user.phone,
+      country: user.country,
+      is_demo: user.isDemo,
+      balance: user.balance,
+      demo_balance: user.demoBalance,
+      equity: user.equity,
+      margin: user.margin,
+      free_margin: user.freeMargin,
+      floating_pl: user.floatingPl,
+      is_2fa_enabled: user.is2FAEnabled,
+      is_verified: user.isVerified,
+      is_banned: user.isBanned,
+      registered_at: user.registeredAt
+    };
+
+    const { error } = await supabase
+      .from("users")
+      .upsert(payload, { onConflict: "email" });
+
+    if (error) {
+      const { error: insertError } = await supabase
+        .from("users")
+        .insert(payload);
+      if (insertError) {
+        console.warn("Could not sync user to Supabase 'users' table -", insertError.message);
+      }
+    }
+  } catch (err: any) {
+    console.warn("Error inside syncUserToSupabase:", err.message);
+  }
+}
+
+async function syncTransactionToSupabase(tx: any) {
+  try {
+    const payload = {
+      tx_id: tx.id,
+      email: mockUser.email,
+      type: tx.type,
+      amount: tx.amount,
+      method: tx.method,
+      status: tx.status,
+      created_at: tx.time,
+      account: tx.account
+    };
+
+    const { error } = await supabase
+      .from("transactions")
+      .upsert(payload, { onConflict: "tx_id" });
+
+    if (error) {
+      const { error: insertError } = await supabase
+        .from("transactions")
+        .insert(payload);
+      if (insertError) {
+        console.warn("Could not sync tx to Supabase 'transactions' table -", insertError.message);
+      }
+    }
+  } catch (err: any) {
+    console.warn("Error inside syncTransactionToSupabase:", err.message);
+  }
+}
+
+async function initializeSupabaseSync() {
+  console.log("Detecting and initializing Supabase data synchronizer...");
+  try {
+    const { data: usersData, error: usersError } = await supabase
+      .from("users")
+      .select("*")
+      .order("registered_at", { ascending: false });
+
+    if (!usersError && usersData && usersData.length > 0) {
+      const foundUser = usersData.find(u => u.email?.toLowerCase() === mockUser.email?.toLowerCase()) || usersData[0];
+      mockUser = {
+        email: foundUser.email || mockUser.email,
+        fullName: foundUser.full_name || mockUser.fullName,
+        phone: foundUser.phone || mockUser.phone,
+        country: foundUser.country || mockUser.country,
+        isDemo: foundUser.is_demo !== undefined ? foundUser.is_demo : mockUser.isDemo,
+        balance: foundUser.balance !== undefined ? parseFloat(foundUser.balance) : mockUser.balance,
+        demoBalance: foundUser.demo_balance !== undefined ? parseFloat(foundUser.demo_balance) : mockUser.demoBalance,
+        equity: foundUser.equity !== undefined ? parseFloat(foundUser.equity) : mockUser.equity,
+        margin: foundUser.margin !== undefined ? parseFloat(foundUser.margin) : mockUser.margin,
+        freeMargin: foundUser.free_margin !== undefined ? parseFloat(foundUser.free_margin) : mockUser.freeMargin,
+        floatingPl: foundUser.floating_pl !== undefined ? parseFloat(foundUser.floating_pl) : mockUser.floatingPl,
+        is2FAEnabled: foundUser.is_2fa_enabled !== undefined ? foundUser.is_2fa_enabled : mockUser.is2FAEnabled,
+        isVerified: foundUser.is_verified !== undefined ? foundUser.is_verified : mockUser.isVerified,
+        isBanned: foundUser.is_banned !== undefined ? foundUser.is_banned : mockUser.isBanned,
+        registeredAt: foundUser.registered_at || mockUser.registeredAt
+      };
+      console.log("Successfully loaded system parameters from Supabase 'users' table:", mockUser.email);
+    } else {
+      if (!usersError) {
+        await syncUserToSupabase(mockUser);
+      } else {
+        console.log("Note: Supabase 'users' table is not created yet. The app is falling back to safe local memory.");
+      }
+    }
+  } catch (err: any) {
+    console.warn("Supabase users sync failed to initiate:", err.message);
+  }
+
+  try {
+    const { data: txsData, error: txsError } = await supabase
+      .from("transactions")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (!txsError && txsData && txsData.length > 0) {
+      mockTransactions = txsData.map((d: any) => ({
+        id: d.tx_id || d.id,
+        type: d.type,
+        amount: parseFloat(d.amount),
+        method: d.method,
+        status: d.status,
+        time: d.created_at || d.time,
+        account: d.account
+      }));
+      console.log(`Successfully imported ${mockTransactions.length} transaction entries from Supabase.`);
+    } else {
+      if (!txsError) {
+        for (const tx of mockTransactions) {
+          await syncTransactionToSupabase(tx);
+        }
+      } else {
+        console.log("Note: Supabase 'transactions' table is not created yet. The app is falling back to safe local memory.");
+      }
+    }
+  } catch (err: any) {
+    console.warn("Supabase transactions sync failed to initiate:", err.message);
+  }
+}
+
 
 // Price simulation variables
 const contractSizes: Record<string, number> = {
@@ -339,19 +486,20 @@ app.get("/api/auth/user", (req, res) => {
   res.json({ success: true, user: mockUser });
 });
 
-app.post("/api/auth/login", (req, res) => {
+app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
   // Standard demo validation
   if (email) {
     mockUser.email = email;
     mockUser.isBanned = false;
+    await syncUserToSupabase(mockUser);
     res.json({ success: true, user: mockUser });
   } else {
     res.status(400).json({ success: false, message: "Invalid submission metadata" });
   }
 });
 
-app.post("/api/auth/register", (req, res) => {
+app.post("/api/auth/register", async (req, res) => {
   const { email, fullName, phone, country } = req.body;
   if (email && fullName) {
     mockUser.email = email;
@@ -362,29 +510,33 @@ app.post("/api/auth/register", (req, res) => {
     mockUser.demoBalance = 10000.00;
     mockUser.balance = 2450.00;
     mockUser.isVerified = true;
+    await syncUserToSupabase(mockUser);
     res.json({ success: true, user: mockUser });
   } else {
     res.status(400).json({ success: false, message: "Please provide valid fields" });
   }
 });
 
-app.post("/api/auth/toggle2fa", (req, res) => {
+app.post("/api/auth/toggle2fa", async (req, res) => {
   mockUser.is2FAEnabled = !mockUser.is2FAEnabled;
+  await syncUserToSupabase(mockUser);
   res.json({ success: true, user: mockUser });
 });
 
-app.post("/api/auth/toggle-account-type", (req, res) => {
+app.post("/api/auth/toggle-account-type", async (req, res) => {
   mockUser.isDemo = !mockUser.isDemo;
+  await syncUserToSupabase(mockUser);
   res.json({ success: true, user: mockUser });
 });
 
-app.post("/api/auth/reset-demo-balance", (req, res) => {
+app.post("/api/auth/reset-demo-balance", async (req, res) => {
   mockUser.demoBalance = 10000.00;
   mockPositions = [];
   mockUser.equity = 10000.00;
   mockUser.margin = 0.00;
   mockUser.freeMargin = 10000.00;
   mockUser.floatingPl = 0.00;
+  await syncUserToSupabase(mockUser);
   res.json({ success: true, user: mockUser });
 });
 
@@ -521,7 +673,7 @@ app.get("/api/funding/transactions", (req, res) => {
   res.json({ success: true, transactions: mockTransactions });
 });
 
-app.post("/api/funding/deposit", (req, res) => {
+app.post("/api/funding/deposit", async (req, res) => {
   const { amount, method } = req.body;
   if (!amount || isNaN(amount) || amount <= 0) {
     return res.status(400).json({ success: false, message: "Invalid deposit allocation" });
@@ -539,10 +691,11 @@ app.post("/api/funding/deposit", (req, res) => {
 
   mockTransactions.unshift(tx);
   registerAlert("NEWS_ALERT", `Deposit pending approval: $${amount} via ${method}`);
+  await syncTransactionToSupabase(tx);
   res.json({ success: true, transaction: tx });
 });
 
-app.post("/api/funding/withdraw", (req, res) => {
+app.post("/api/funding/withdraw", async (req, res) => {
   const { amount, method } = req.body;
   if (!amount || isNaN(amount) || amount <= 0) {
     return res.status(400).json({ success: false, message: "Invalid Withdrawal parameter" });
@@ -565,6 +718,7 @@ app.post("/api/funding/withdraw", (req, res) => {
 
   mockTransactions.unshift(tx);
   registerAlert("NEWS_ALERT", `Withdrawal request submitted: $${amount} via ${method}`);
+  await syncTransactionToSupabase(tx);
   res.json({ success: true, transaction: tx });
 });
 
@@ -621,17 +775,19 @@ app.get("/api/admin/users", (req, res) => {
   res.json({ success: true, users: [mockUser] });
 });
 
-app.post("/api/admin/users/ban", (req, res) => {
+app.post("/api/admin/users/ban", async (req, res) => {
   mockUser.isBanned = !mockUser.isBanned;
+  await syncUserToSupabase(mockUser);
   res.json({ success: true, user: mockUser });
 });
 
-app.post("/api/admin/users/verify", (req, res) => {
+app.post("/api/admin/users/verify", async (req, res) => {
   mockUser.isVerified = !mockUser.isVerified;
+  await syncUserToSupabase(mockUser);
   res.json({ success: true, user: mockUser });
 });
 
-app.post("/api/admin/transactions/:id/approve", (req, res) => {
+app.post("/api/admin/transactions/:id/approve", async (req, res) => {
   const { id } = req.params;
   const tx = mockTransactions.find((t) => t.id === id);
   if (tx) {
@@ -652,6 +808,8 @@ app.post("/api/admin/transactions/:id/approve", (req, res) => {
         }
       }
       registerAlert("NEWS_ALERT", `Transaction ${tx.id} approved. New funds logged.`);
+      await syncTransactionToSupabase(tx);
+      await syncUserToSupabase(mockUser);
     }
     res.json({ success: true, transaction: tx, user: mockUser, transactions: mockTransactions });
   } else {
@@ -659,13 +817,14 @@ app.post("/api/admin/transactions/:id/approve", (req, res) => {
   }
 });
 
-app.post("/api/admin/transactions/:id/reject", (req, res) => {
+app.post("/api/admin/transactions/:id/reject", async (req, res) => {
   const { id } = req.params;
   const tx = mockTransactions.find((t) => t.id === id);
   if (tx) {
     if (tx.status === "PENDING") {
       tx.status = "REJECTED";
       registerAlert("NEWS_ALERT", `Transaction ${tx.id} was rejected during validation.`);
+      await syncTransactionToSupabase(tx);
     }
     res.json({ success: true, transaction: tx, transactions: mockTransactions });
   } else {
@@ -760,6 +919,9 @@ Please provide:
 // VITE DEV / PRODUCTION ENGINE MOUNTING
 // ==========================================
 async function startServer() {
+  // Bootstrap data synchronization with user's Supabase tables
+  await initializeSupabaseSync();
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
