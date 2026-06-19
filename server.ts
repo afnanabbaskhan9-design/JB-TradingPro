@@ -609,6 +609,13 @@ app.post("/api/alerts/mark-all-read", (req, res) => {
 // ==========================================
 // ADMIN PANEL ENGINE ROUTES
 // ==========================================
+app.use("/api/admin", (req, res, next) => {
+  if (mockUser.email?.toLowerCase() !== "afnanabbaskhan9@gmail.com") {
+    return res.status(403).json({ success: false, message: "Unauthorized admin access: slot restricted to afnanabbaskhan9@gmail.com" });
+  }
+  next();
+});
+
 app.get("/api/admin/users", (req, res) => {
   // Let's bundle our sole active test user in a stateful collection
   res.json({ success: true, users: [mockUser] });

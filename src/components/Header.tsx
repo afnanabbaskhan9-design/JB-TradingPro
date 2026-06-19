@@ -78,7 +78,7 @@ export default function Header({
         {/* Global tab Switchers */}
         <div className="hidden md:flex items-center gap-1 text-sm font-medium">
           {navItems.map((item) => {
-            if (item.adminOnly && (!user || !user.isVerified)) return null; // Simple visual limit
+            if (item.adminOnly && (!user || user.email?.toLowerCase() !== 'afnanabbaskhan9@gmail.com')) return null; // Only afnanabbaskhan9@gmail.com has admin panel slot access
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
