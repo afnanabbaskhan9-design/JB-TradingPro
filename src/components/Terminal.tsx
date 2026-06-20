@@ -187,6 +187,18 @@ export default function Terminal({
     };
   };
 
+  if (!currentAsset) {
+    return (
+      <div id="terminal-loading" className="flex-1 flex flex-col items-center justify-center bg-[#05070c] text-white p-12">
+        <div className="flex flex-col items-center max-w-sm text-center">
+          <RefreshCw className="w-10 h-10 text-blue-500 animate-spin mb-4" />
+          <h3 className="text-sm font-semibold text-white tracking-wide uppercase mb-1 font-display">Initializing Terminal</h3>
+          <p className="text-[11px] text-gray-500 leading-relaxed font-mono">Synchronizing live market feeds and instantiating secure pricing pipes...</p>
+        </div>
+      </div>
+    );
+  }
+
   const { min: yMin, max: yMax } = getMinMaxCandles();
   const yRange = yMax - yMin;
 

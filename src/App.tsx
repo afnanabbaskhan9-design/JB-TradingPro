@@ -35,7 +35,23 @@ import {
 
 export default function App() {
   // Global states
-  const [user, setUser] = useState<UserAccount | null>(null);
+  const [user, setUser] = useState<UserAccount | null>({
+    email: "afnanabbaskhan9@gmail.com",
+    fullName: "Afnan Abbas Khan",
+    phone: "+44 7911 123456",
+    country: "United Kingdom",
+    isDemo: true,
+    balance: 2450.00,
+    demoBalance: 10000.00,
+    equity: 10000.00,
+    margin: 0.00,
+    freeMargin: 10000.00,
+    floatingPl: 0.00,
+    is2FAEnabled: false,
+    isVerified: true,
+    isBanned: false,
+    registeredAt: new Date().toISOString()
+  });
   const [assets, setAssets] = useState<Asset[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
   const [transactions, setTransactions] = useState<TransactionHistory[]>([]);
@@ -114,7 +130,7 @@ export default function App() {
         // Default selected asset representation check
         if (!selectedAsset && assetsRes.assets.length > 0) {
           setSelectedAsset(assetsRes.assets[0]);
-        } else if (selectedAsset) {
+        } else if (selectedAsset && selectedAsset.symbol) {
           // Keep synced selected ticker metric
           const found = assetsRes.assets.find((a: Asset) => a.symbol === selectedAsset.symbol);
           if (found) setSelectedAsset(found);
