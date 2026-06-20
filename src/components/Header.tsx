@@ -23,6 +23,8 @@ interface HeaderProps {
   onResetDemo: () => void;
   onToggle2FA: () => void;
   onLoginClick: () => void;
+  onRegisterClick: () => void;
+  isLoggedIn: boolean;
   unreadCount: number;
   onMarkAlertsRead: () => void;
 }
@@ -36,6 +38,8 @@ export default function Header({
   onResetDemo,
   onToggle2FA,
   onLoginClick,
+  onRegisterClick,
+  isLoggedIn,
   unreadCount,
   onMarkAlertsRead
 }: HeaderProps) {
@@ -196,95 +200,108 @@ export default function Header({
 
             {/* Profile context settings Menu */}
             <div className="relative">
-              <button 
-                id="profile-dropdown-btn"
-                onClick={() => {
-                  setShowProfileDropdown(!showProfileDropdown);
-                  setShowNotificationDropdown(false);
-                }}
-                className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center cursor-pointer hover:border-blue-400 transition-colors"
-              >
-                <span className="text-xs font-bold text-blue-400 font-display">
-                  {user.fullName.split(' ').map(n=>n[0]).join('').toUpperCase()}
-                </span>
-              </button>
+              {isLoggedIn && user ? (
+                <>
+                  <button 
+                    id="profile-dropdown-btn"
+                    onClick={() => {
+                      setShowProfileDropdown(!showProfileDropdown);
+                      setShowNotificationDropdown(false);
+                    }}
+                    className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center cursor-pointer hover:border-blue-400 transition-colors animate-fade-in"
+                  >
+                    <span className="text-xs font-bold text-blue-400 font-display">
+                      {user.fullName.split(' ').map(n=>n[0]).join('').toUpperCase()}
+                    </span>
+                  </button>
 
-              {showProfileDropdown && (
-                <div className="absolute right-0 mt-2.5 w-64 glass-panel-heavy rounded-xl p-1 shadow-2xl z-50 border border-white/10 text-left">
-                  <div className="p-4 border-b border-white/10 bg-black/40 rounded-t-xl">
-                    <p className="font-bold text-white text-xs">{user.fullName}</p>
-                    <p className="text-[10px] text-gray-400 font-mono mt-0.5">{user.email}</p>
-                    <p className="text-[10px] text-gray-500 mt-1">{user.phone}</p>
-                  </div>
-                  
-                  <div className="p-1 space-y-1">
-                    {user.isDemo && (
-                      <button 
-                        onClick={() => {
-                          onResetDemo();
-                          setShowProfileDropdown(false);
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-amber-400 hover:bg-amber-500/10 rounded-lg text-left cursor-pointer font-medium"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        Reset Demo Balance ($10k)
-                      </button>
-                    )}
+                  {showProfileDropdown && (
+                    <div className="absolute right-0 mt-2.5 w-64 glass-panel-heavy rounded-xl p-1 shadow-2xl z-50 border border-white/10 text-left">
+                      <div className="p-4 border-b border-white/10 bg-black/40 rounded-t-xl">
+                        <p className="font-bold text-white text-xs">{user.fullName}</p>
+                        <p className="text-[10px] text-gray-400 font-mono mt-0.5">{user.email}</p>
+                        <p className="text-[10px] text-gray-500 mt-1">{user.phone}</p>
+                      </div>
+                      
+                      <div className="p-1 space-y-1">
+                        {user.isDemo && (
+                          <button 
+                            onClick={() => {
+                              onResetDemo();
+                              setShowProfileDropdown(false);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-amber-400 hover:bg-amber-500/10 rounded-lg text-left cursor-pointer font-medium"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            Reset Demo Balance ($10k)
+                          </button>
+                        )}
 
-                    <button 
-                      onClick={() => {
-                        onToggle2FA();
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-300 hover:bg-white/5 rounded-lg text-left cursor-pointer font-medium"
-                    >
-                      <span className="flex items-center gap-2">
-                        <ShieldAlert className="w-3.5 h-3.5 text-blue-400" />
-                        Two-Factor Auth (2FA)
-                      </span>
-                      <span className={`text-[10px] font-bold uppercase rounded-full px-2 py-0.5 text-right ${
-                        user.is2FAEnabled ? 'bg-green-500/25 text-green-400' : 'bg-white/10 text-gray-500'
-                      }`}>
-                        {user.is2FAEnabled ? 'Active' : 'Disabled'}
-                      </span>
-                    </button>
+                        <button 
+                          onClick={() => {
+                            onToggle2FA();
+                          }}
+                          className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-300 hover:bg-white/5 rounded-lg text-left cursor-pointer font-medium"
+                        >
+                          <span className="flex items-center gap-2">
+                            <ShieldAlert className="w-3.5 h-3.5 text-blue-400" />
+                            Two-Factor Auth (2FA)
+                          </span>
+                          <span className={`text-[10px] font-bold uppercase rounded-full px-2 py-0.5 text-right ${
+                            user.is2FAEnabled ? 'bg-green-500/25 text-green-400' : 'bg-white/10 text-gray-500'
+                          }`}>
+                            {user.is2FAEnabled ? 'Active' : 'Disabled'}
+                          </span>
+                        </button>
 
-                    <div className="p-2 border-t border-white/5 text-[10px] text-gray-500 flex flex-col gap-1">
-                      <span className="flex items-center justify-between">
-                        <span>Identity verification:</span>
-                        <span className="text-green-400 font-bold uppercase">Verified</span>
-                      </span>
-                      <span className="flex items-center justify-between">
-                        <span>Terminal Device:</span>
-                        <span className="text-blue-400 font-mono text-[9px]">macOS - Chrome Browser</span>
-                      </span>
+                        <div className="p-2 border-t border-white/5 text-[10px] text-gray-500 flex flex-col gap-1">
+                          <span className="flex items-center justify-between">
+                            <span>Identity verification:</span>
+                            <span className="text-green-400 font-bold uppercase">Verified</span>
+                          </span>
+                          <span className="flex items-center justify-between">
+                            <span>Terminal Device:</span>
+                            <span className="text-blue-400 font-mono text-[9px]">macOS - Chrome Browser</span>
+                          </span>
+                        </div>
+
+                        <div className="border-t border-white/10 p-1">
+                          <button 
+                            onClick={() => {
+                              // Clear standard mock login states and restart
+                              localStorage.removeItem("isLoggedIn");
+                              window.location.reload();
+                            }}
+                            className="w-full text-center py-1.5 text-xs text-red-400 hover:bg-red-500/10 rounded-lg cursor-pointer"
+                          >
+                            Sign Out
+                          </button>
+                        </div>
+                      </div>
                     </div>
-
-                    <div className="border-t border-white/10 p-1">
-                      <button 
-                        onClick={() => {
-                          // Clear standard mock login states and restart
-                          window.location.reload();
-                        }}
-                        className="w-full text-center py-1.5 text-xs text-red-400 hover:bg-red-500/10 rounded-lg cursor-pointer"
-                      >
-                        Sign Out
-                      </button>
-                    </div>
-                  </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    id="header-sign-in"
+                    onClick={onLoginClick}
+                    className="px-3 py-1 bg-[#10141e] hover:bg-white/5 border border-white/10 rounded-lg text-[11px] font-bold text-gray-300 hover:text-white transition-colors cursor-pointer"
+                  >
+                    Login
+                  </button>
+                  <button
+                    id="header-register"
+                    onClick={onRegisterClick}
+                    className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded-lg text-[11px] font-bold text-white shadow-md shadow-blue-500/20 transition-colors cursor-pointer"
+                  >
+                    Register
+                  </button>
                 </div>
               )}
             </div>
           </>
-        ) : (
-          <button 
-            id="header-sign-in"
-            onClick={onLoginClick}
-            className="px-4 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-500/25 transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <User className="w-3.5 h-3.5" />
-            Sign In / Register
-          </button>
-        )}
+        ) : null}
       </div>
     </nav>
   );
